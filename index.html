@@ -104,7 +104,12 @@
 </head>
 
 <body>
-
+    <div style="text-align: right; margin-bottom: -20px; padding-right: 20px;">
+        <button onclick="syncData()"
+            style="background: #34495e; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-size: 14px;">
+            🔄 ดึงข้อมูลใหม่จาก Drive
+        </button>
+    </div>
     <h1 id="titleText">Vote Intern ...</h1>
     <p>กรุณาเลือก Intern ที่ต้องการโหวต 3 ลำดับ (คลิกที่รูปเพื่อเลือก)</p>
 
@@ -223,6 +228,41 @@
                     btn.disabled = false;
                 });
         }
+
+        // 7. ฟังก์ชันสั่งอัปเดตข้อมูลจาก Drive
+        function syncData() {
+            // ตั้งรหัสผ่านง่ายๆ ตรงนี้ ป้องกันคนอื่นกดเล่น
+            const pass = prompt('กรุณาใส่รหัสผ่านแอดมิน เพื่อดึงข้อมูลใหม่จาก Drive:');
+            if (pass !== '1234') {
+                if (pass !== null) alert('รหัสผ่านไม่ถูกต้อง');
+                return;
+            }
+
+            alert('กำลังสั่งให้ระบบดึงข้อมูลจาก Google Drive... อาจใช้เวลา 5-15 วินาที กรุณารอสักครู่ครับ');
+
+            // เตรียมคำสั่ง action = updateDatabase
+            const formData = new URLSearchParams();
+            formData.append('action', 'updateDatabase');
+
+            fetch(SCRIPT_URL, {
+                method: 'POST',
+                body: formData
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        alert('อัปเดตฐานข้อมูลสำเร็จ! ระบบจะรีเฟรชหน้าเว็บเพื่อแสดงรูปใหม่');
+                        window.location.reload();
+                    } else {
+                        alert('เกิดข้อผิดพลาดในการดึงข้อมูลจาก Drive');
+                    }
+                })
+                .catch(error => {
+                    console.error(error);
+                    alert('เกิดข้อผิดพลาดในการเชื่อมต่อ');
+                });
+        }
+
     </script>
 </body>
 
