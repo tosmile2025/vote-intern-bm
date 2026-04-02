@@ -11,7 +11,6 @@
             background-color: #f4f7f6;
             text-align: center;
             padding: 0;
-            /* เอา padding ออกเพื่อจัด Header */
             margin: 0;
         }
 
@@ -38,7 +37,6 @@
             backdrop-filter: blur(5px);
         }
 
-        /* เอฟเฟกต์ตอนเลื่อนลง (หัวจะเล็กลง) */
         .sticky-header.shrink {
             padding: 8px 20px;
         }
@@ -61,7 +59,6 @@
             font-size: 18px;
         }
 
-        /* ส่วนแสดงจำนวนที่เลือก */
         .selection-counter {
             background: #f1c40f;
             color: #2c3e50;
@@ -72,7 +69,6 @@
             transition: all 0.3s ease;
         }
 
-        /* ปุ่มส่งโหวตด้านบน */
         .btn-submit {
             background: #27ae60;
             color: white;
@@ -95,7 +91,49 @@
             background: #2ecc71;
         }
 
-        /* ส่วนเนื้อหาหลัก */
+        /* 📱 จัดการหน้าจอสำหรับมือถือโดยเฉพาะ */
+        @media (max-width: 600px) {
+            .sticky-header {
+                padding: 10px;
+                flex-direction: column;
+                /* จับเรียงซ้อนกันบนมือถือ */
+                gap: 10px;
+            }
+
+            .header-left {
+                width: 100%;
+                justify-content: space-between;
+            }
+
+            .sticky-header h1 {
+                font-size: 18px;
+            }
+
+            .sticky-header.shrink h1 {
+                font-size: 16px;
+            }
+
+            .selection-counter {
+                font-size: 12px;
+                padding: 4px 8px;
+            }
+
+            .btn-submit {
+                font-size: 14px;
+                padding: 8px 15px;
+                width: 100%;
+            }
+
+            /* ปุ่มเต็มจอเวลากดง่าย */
+            .admin-bar {
+                padding: 5px 10px;
+            }
+
+            .admin-bar button {
+                font-size: 12px;
+            }
+        }
+
         .content {
             padding: 20px;
         }
@@ -103,6 +141,28 @@
         .description {
             color: #555;
             margin-bottom: 20px;
+        }
+
+        /* หน้าจอแจ้งเตือนเมื่อโหวตไปแล้ว */
+        #votedMessage {
+            display: none;
+            background: #d4edda;
+            color: #155724;
+            padding: 30px 20px;
+            margin: 40px auto;
+            border-radius: 10px;
+            max-width: 600px;
+            border: 2px solid #c3e6cb;
+        }
+
+        #votedMessage h2 {
+            margin-top: 0;
+            font-size: 24px;
+        }
+
+        #votedMessage p {
+            font-size: 16px;
+            margin-bottom: 0;
         }
 
         .grid {
@@ -175,20 +235,20 @@
             color: #7f8c8d;
             margin-top: 50px;
         }
-
-        /* ซ่อนปุ่มส่งอันเก่าที่อยู่ด้านล่าง */
-        #submitBtn {
-            display: none !important;
-        }
     </style>
 </head>
 
 <body>
     <div class="admin-bar">
         <button onclick="syncData()"
-            style="background: #34495e; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-size: 14px;">
+            style="background: #34495e; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer;">
             🔄 ดึงข้อมูลใหม่จาก Drive
         </button>
+    </div>
+
+    <div id="votedMessage">
+        <h2>🎉 ขอบคุณที่ร่วมโหวต!</h2>
+        <p>คุณได้ทำการส่งผลโหวตเรียบร้อยแล้ว ระบบอนุญาตให้โหวตได้ 1 ครั้งต่อ 1 อุปกรณ์ครับ</p>
     </div>
 
     <div class="sticky-header" id="stickyHeader">
@@ -199,10 +259,10 @@
         <button id="topSubmitBtn" class="btn-submit" onclick="submitVote()" disabled>ส่งผลโหวต</button>
     </div>
 
-    <div class="content">
+    <div class="content" id="mainContent">
         <p class="description">กรุณาเลือก Intern ที่ต้องการโหวต 1-3 ลำดับ (คลิกที่รูปเพื่อเลือก)</p>
 
-        <div id="loading">กำลังโหลดข้อมูล...</div>
+        <div id="loading">กำลังเชื่อมต่อข้อมูล...</div>
         <div class="grid" id="internGrid"></div>
     </div>
 
@@ -211,23 +271,50 @@
         const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx_fRTUbzyuSR3oGoFl3W4S4Anda1sXUmWx8drsy4PphFy4atsWsaEyAky7BCfd1vVL/exec';
 
         let interns = [];
-        let selectedVotes = []; // เก็บชื่อคนที่ถูกโหวต [อันดับ 1, อันดับ 2, อันดับ 3]
+        let selectedVotes = [];
 
-        // 1. ตั้งค่าปีอัตโนมัติ
-        const currentYear = new Date().getFullYear();
-        const displayYear = (currentYear + 543) - 1;
+        // ตั้งค่าปีอัตโนมัติ
+        const displayYear = (new Date().getFullYear() + 543) - 1;
         document.getElementById('titleText').innerText = `Vote Intern ${displayYear}`;
 
-        // 2. ดึงข้อมูลจาก Google Sheet
-        fetch(SCRIPT_URL)
-            .then(response => response.json())
-            .then(data => {
-                interns = data;
-                document.getElementById('loading').style.display = 'none';
-                renderGrid();
-            });
+        // 🛑 ตรวจสอบว่าเคยโหวตไปแล้วหรือยัง
+        if (localStorage.getItem('hasVoted') === 'true') {
+            // ถ้าเคยโหวตแล้ว ซ่อนเนื้อหาโหวต และแสดงข้อความขอบคุณ
+            document.getElementById('mainContent').style.display = 'none';
+            document.getElementById('stickyHeader').style.display = 'none';
+            document.getElementById('votedMessage').style.display = 'block';
+        } else {
+            // ถ้ายังไม่เคยโหวต ให้โหลดข้อมูล
+            loadData();
+        }
 
-        // 3. จัดการ Scroll เพื่อย่อขนาด Header
+        // ⚡ ฟังก์ชันโหลดข้อมูล (มีระบบ Caching ช่วยให้โหลดไวขึ้น)
+        function loadData() {
+            // 1. ลองดึงข้อมูลจากความจำเครื่องก่อน (Cache)
+            const cachedData = localStorage.getItem('internListCache');
+            if (cachedData) {
+                interns = JSON.parse(cachedData);
+                document.getElementById('loading').style.display = 'none';
+                renderGrid(); // แสดผลทันที! ไม่ต้องรอ
+            }
+
+            // 2. ดึงข้อมูลจริงจาก Google Sheet แบบ Background เพื่ออัปเดตข้อมูลให้สดใหม่เสมอ
+            fetch(SCRIPT_URL)
+                .then(response => response.json())
+                .then(data => {
+                    interns = data;
+                    localStorage.setItem('internListCache', JSON.stringify(data)); // บันทึกแคชไว้ใช้รอบหน้า
+
+                    // ถ้ารอบแรกไม่มีแคช ก็ให้ซ่อนโหลดแล้วแสดงผล
+                    if (!cachedData) {
+                        document.getElementById('loading').style.display = 'none';
+                        renderGrid();
+                    }
+                })
+                .catch(err => console.log('โหลดข้อมูลเบื้องหลังล้มเหลว', err));
+        }
+
+        // จัดการ Scroll เพื่อย่อขนาด Header
         window.addEventListener('scroll', () => {
             const header = document.getElementById('stickyHeader');
             if (window.scrollY > 50) {
@@ -237,7 +324,7 @@
             }
         });
 
-        // 4. สร้างการ์ดแสดงรายชื่อ
+        // สร้างการ์ดแสดงรายชื่อ
         function renderGrid() {
             const grid = document.getElementById('internGrid');
             grid.innerHTML = '';
@@ -256,15 +343,13 @@
             });
         }
 
-        // 5. ระบบเลือกลำดับ
+        // ระบบเลือกลำดับ
         function toggleSelection(name, cardElement) {
             const index = selectedVotes.indexOf(name);
 
             if (index > -1) {
-                // ถ้าเลือกซ้ำ ให้ยกเลิกการเลือก
                 selectedVotes.splice(index, 1);
             } else {
-                // ถ้ายังไม่เลือก และยังเลือกไม่ครบ 3 คน
                 if (selectedVotes.length < 3) {
                     selectedVotes.push(name);
                 } else {
@@ -275,7 +360,7 @@
             updateUI();
         }
 
-        // 6. อัปเดตหน้าตา UI (ป้าย 1, 2, 3, ตัวนับจำนวน และปุ่มส่ง)
+        // อัปเดตหน้าตา UI
         function updateUI() {
             const cards = document.querySelectorAll('.card');
             cards.forEach((card, index) => {
@@ -285,32 +370,23 @@
 
                 if (voteRank > -1) {
                     card.classList.add('selected');
-                    badge.innerText = voteRank + 1; // ลำดับ 1, 2, 3
+                    badge.innerText = voteRank + 1;
                 } else {
                     card.classList.remove('selected');
                     badge.innerText = '';
                 }
             });
 
-            // อัปเดตตัวนับจำนวนบน Header
             document.getElementById('counterText').innerText = `เลือกแล้ว: ${selectedVotes.length}/3 คน`;
-
-            // เปิดให้กดปุ่มส่งได้ เมื่อเลือกอย่างน้อย 1 คน
-            const topBtn = document.getElementById('topSubmitBtn');
-            if (selectedVotes.length > 0) {
-                topBtn.disabled = false;
-            } else {
-                topBtn.disabled = true;
-            }
+            document.getElementById('topSubmitBtn').disabled = selectedVotes.length === 0;
         }
 
-        // 7. ส่งข้อมูลกลับไปบันทึกที่ Google Sheet
+        // ส่งข้อมูลและล็อคการโหวต
         function submitVote() {
             const topBtn = document.getElementById('topSubmitBtn');
             topBtn.innerText = 'กำลังส่ง...';
             topBtn.disabled = true;
 
-            // เตรียมข้อมูลส่งเป็น Form Data (ถ้าไม่ได้เลือกอันดับไหน ให้ส่งค่าว่างไป)
             const formData = new URLSearchParams();
             formData.append('rank1', selectedVotes[0] || '');
             formData.append('rank2', selectedVotes[1] || '');
@@ -323,8 +399,11 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.status === 'success') {
+                        // 🔒 บันทึกสถานะว่า "โหวตแล้ว" ลงในเครื่อง
+                        localStorage.setItem('hasVoted', 'true');
+
                         alert('บันทึกผลโหวตเรียบร้อยแล้ว ขอบคุณครับ!');
-                        window.location.reload();
+                        window.location.reload(); // รีเฟรชเพื่อเข้าสู่หน้าจอขอบคุณ
                     }
                 })
                 .catch(error => {
@@ -334,7 +413,7 @@
                 });
         }
 
-        // 8. ฟังก์ชันสั่งอัปเดตข้อมูลจาก Drive
+        // ฟังก์ชันอัปเดตฐานข้อมูล (ล้างแคชด้วย)
         function syncData() {
             const pass = prompt('กรุณาใส่รหัสผ่านแอดมิน เพื่อดึงข้อมูลใหม่จาก Drive:');
             if (pass !== '1234') {
@@ -342,7 +421,7 @@
                 return;
             }
 
-            alert('กำลังสั่งให้ระบบดึงข้อมูลจาก Google Drive... อาจใช้เวลา 5-15 วินาที กรุณารอสักครู่ครับ');
+            alert('กำลังสั่งให้ระบบดึงข้อมูล... อาจใช้เวลา 5-15 วินาที กรุณารอสักครู่ครับ');
 
             const formData = new URLSearchParams();
             formData.append('action', 'updateDatabase');
@@ -354,16 +433,15 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.status === 'success') {
-                        alert('อัปเดตฐานข้อมูลสำเร็จ! ระบบจะรีเฟรชหน้าเว็บเพื่อแสดงรูปใหม่');
+                        // 🧹 ล้างแคชในเครื่องแอดมิน เพื่อให้โหลดรูปใหม่มาแสดง
+                        localStorage.removeItem('internListCache');
+                        alert('อัปเดตฐานข้อมูลสำเร็จ! ระบบจะรีเฟรชหน้าเว็บ');
                         window.location.reload();
                     } else {
                         alert('เกิดข้อผิดพลาดในการดึงข้อมูลจาก Drive');
                     }
                 })
-                .catch(error => {
-                    console.error(error);
-                    alert('เกิดข้อผิดพลาดในการเชื่อมต่อ');
-                });
+                .catch(error => alert('เกิดข้อผิดพลาดในการเชื่อมต่อ'));
         }
     </script>
 </body>
