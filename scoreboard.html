@@ -12,12 +12,36 @@
             color: white;
             text-align: center;
             padding: 20px;
+            margin: 0;
+        }
+
+        /* แถบเมนูแอดมิน */
+        .admin-bar {
+            text-align: right;
+            padding: 10px 20px;
+        }
+
+        .admin-bar button {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: 0.3s;
+        }
+
+        .admin-bar button:hover {
+            background: #c0392b;
         }
 
         h1 {
             color: #f1c40f;
             font-size: 36px;
             margin-bottom: 10px;
+            margin-top: 10px;
         }
 
         .podium-container {
@@ -48,6 +72,7 @@
             border-radius: 50%;
             border: 5px solid;
             margin-bottom: 15px;
+            background: white;
         }
 
         .top-card h3 {
@@ -159,6 +184,7 @@
             height: 50px;
             border-radius: 50%;
             object-fit: cover;
+            background: white;
         }
 
         .other-rank {
@@ -173,10 +199,35 @@
             color: #f1c40f;
             margin-top: 50px;
         }
+
+        @media (max-width: 600px) {
+            .podium-container {
+                flex-direction: column;
+                align-items: center;
+                gap: 40px;
+            }
+
+            .rank-1 {
+                order: 1;
+                transform: translateY(0);
+            }
+
+            .rank-2 {
+                order: 2;
+            }
+
+            .rank-3 {
+                order: 3;
+            }
+        }
     </style>
 </head>
 
 <body>
+
+    <div class="admin-bar">
+        <button onclick="clearVotes()">🗑️ ล้างผลโหวตทั้งหมด</button>
+    </div>
 
     <h1 id="titleText">🏆 Live Scoreboard ...</h1>
     <p>สรุปผลคะแนนโหวต (อันดับ 1 = 3 คะแนน, อันดับ 2 = 2 คะแนน, อันดับ 3 = 1 คะแนน)</p>
@@ -191,8 +242,8 @@
         // ⚠️ นำ URL เว็บแอป (Web App URL) ของคุณมาใส่ตรงนี้
         const BASE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx_fRTUbzyuSR3oGoFl3W4S4Anda1sXUmWx8drsy4PphFy4atsWsaEyAky7BCfd1vVL/exec';
 
-        // เติม ?action=getScoreboard ต่อท้าย URL อัตโนมัติ
-        const SCRIPT_URL = BASE_SCRIPT_URL + (BASE_SCRIPT_URL.includes('?') ? '&' : '?') + 'action=getScoreboard';
+        // เติม ?action=getScoreboard ต่อท้าย URL อัตโนมัติสำหรับการโหลดข้อมูล
+        const SCRIPT_URL = BASE_SCRIPT_URL + '?action=getScoreboard';
 
         // ตั้งค่าปีอัตโนมัติ
         const displayYear = (new Date().getFullYear() + 543) - 1;
@@ -218,7 +269,6 @@
                 const rank = index + 1;
 
                 if (rank <= 3) {
-                    // สร้างการ์ดสำหรับ Top 3
                     const card = document.createElement('div');
                     card.className = `top-card rank-${rank}`;
                     card.innerHTML = `
@@ -230,7 +280,6 @@
                     `;
                     top3Container.appendChild(card);
                 } else {
-                    // สร้างแถวสำหรับอันดับที่ 4 ลงไป (คนที่มีคะแนน 0 จะยังโชว์อยู่)
                     const row = document.createElement('div');
                     row.className = 'other-row';
                     row.innerHTML = `
@@ -244,6 +293,45 @@
                     othersContainer.appendChild(row);
                 }
             });
+        }
+
+        // 🛑 ฟังก์ชันสั่งล้างข้อมูลคะแนนโหวต (ใช้รหัสผ่าน)
+        function clearVotes() {
+            const pass = prompt('กรุณาใส่รหัสผ่านแอดมิน เพื่อ "ล้างข้อมูลผลโหวตทั้งหมด":');
+            if (pass !== '1234') {
+                if (pass !== null) alert('รหัสผ่านไม่ถูกต้อง');
+                return;
+            }
+
+            // ยืนยันอีกครั้งป้องกันการเผลอกด
+            if (!confirm('⚠️ คำเตือน: คุณแน่ใจหรือไม่ว่าต้องการลบผลโหวตทั้งหมด? การกระทำนี้ไม่สามารถย้อนกลับได้!')) {
+                return;
+            }
+
+            alert('กำลังสั่งลบข้อมูลใน Google Sheet... กรุณารอสักครู่ครับ');
+
+            // เตรียมคำสั่ง action = clearVotes
+            const formData = new URLSearchParams();
+            formData.append('action', 'clearVotes');
+
+            // สั่ง POST ไปยัง URL หลัก
+            fetch(BASE_SCRIPT_URL, {
+                method: 'POST',
+                body: formData
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        alert('ล้างผลโหวตเรียบร้อยแล้ว! คะแนนทุกคนกลับไปเป็น 0');
+                        window.location.reload();
+                    } else {
+                        alert('เกิดข้อผิดพลาดในการล้างข้อมูล');
+                    }
+                })
+                .catch(error => {
+                    console.error(error);
+                    alert('เกิดข้อผิดพลาดในการเชื่อมต่อ');
+                });
         }
     </script>
 </body>
