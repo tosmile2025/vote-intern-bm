@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vote Intern</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7f6;
+            text-align: center;
+            padding: 20px;
+        }
+
+        h1 {
+            color: #2c3e50;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 15px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            cursor: pointer;
+            transition: 0.3s;
+            position: relative;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+        }
+
+        .card img {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            border-radius: 8px;
+        }
+
+        .card h3 {
+            font-size: 16px;
+            margin: 15px 0 0 0;
+            color: #333;
+        }
+
+        .badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #e74c3c;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            font-size: 18px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: 0.2s;
+        }
+
+        .card.selected {
+            border: 3px solid #e74c3c;
+        }
+
+        .card.selected .badge {
+            opacity: 1;
+        }
+
+        #submitBtn {
+            margin-top: 30px;
+            padding: 15px 30px;
+            font-size: 18px;
+            background-color: #27ae60;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            display: none;
+        }
+
+        #submitBtn:disabled {
+            background-color: #95a5a6;
+            cursor: not-allowed;
+        }
+
+        #loading {
+            font-size: 18px;
+            color: #7f8c8d;
+            margin-top: 50px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1 id="titleText">Vote Intern ...</h1>
+    <p>กรุณาเลือก Intern ที่ต้องการโหวต 3 ลำดับ (คลิกที่รูปเพื่อเลือก)</p>
+
+    <div id="loading">กำลังโหลดข้อมูล...</div>
+    <div class="grid" id="internGrid"></div>
+
+    <button id="submitBtn" onclick="submitVote()">ส่งผลโหวต</button>
+
+    <script>
+        // ⚠️ นำ URL เว็บแอป (Web App URL) ที่ได้จากขั้นตอนที่ 1 มาใส่ตรงนี้ 
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx_fRTUbzyuSR3oGoFl3W4S4Anda1sXUmWx8drsy4PphFy4atsWsaEyAky7BCfd1vVL/exec';
+
+        let interns = [];
+        let selectedVotes = []; // เก็บชื่อคนที่ถูกโหวต [อันดับ 1, อันดับ 2, อันดับ 3]
+
+        // 1. ตั้งค่าปีอัตโนมัติ (เช่น ปีปัจจุบัน 2569 - 1 = 2568)
+        const currentYear = new Date().getFullYear();
+        const displayYear = (currentYear + 543) - 1;
+        document.getElementById('titleText').innerText = `Vote Intern ${displayYear}`;
+
+        // 2. ดึงข้อมูลจาก Google Sheet (เร็วมาก)
+        fetch(SCRIPT_URL)
+            .then(response => response.json())
+            .then(data => {
+                interns = data;
+                document.getElementById('loading').style.display = 'none';
+                renderGrid();
+            });
+
+        // 3. สร้างการ์ดแสดงรายชื่อ
+        function renderGrid() {
+            const grid = document.getElementById('internGrid');
+            grid.innerHTML = '';
+
+            interns.forEach(intern => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.onclick = () => toggleSelection(intern.name, card);
+
+                card.innerHTML = `
+                    <div class="badge"></div>
+                    <img src="${intern.imageUrl}" alt="${intern.name}" loading="lazy">
+                    <h3>${intern.name}</h3>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        // 4. ระบบเลือกลำดับ 1, 2, 3
+        function toggleSelection(name, cardElement) {
+            const index = selectedVotes.indexOf(name);
+
+            if (index > -1) {
+                // ถ้าเลือกซ้ำ ให้ยกเลิกการเลือก
+                selectedVotes.splice(index, 1);
+            } else {
+                // ถ้ายังไม่เลือก และยังเลือกไม่ครบ 3 คน
+                if (selectedVotes.length < 3) {
+                    selectedVotes.push(name);
+                } else {
+                    alert('คุณเลือกครบ 3 ลำดับแล้วครับ หากต้องการเปลี่ยนให้คลิกยกเลิกคนเดิมก่อน');
+                    return;
+                }
+            }
+            updateUI();
+        }
+
+        // 5. อัปเดตหน้าตา UI (ป้าย 1, 2, 3 และปุ่มส่ง)
+        function updateUI() {
+            const cards = document.querySelectorAll('.card');
+            cards.forEach((card, index) => {
+                const internName = interns[index].name;
+                const voteRank = selectedVotes.indexOf(internName);
+                const badge = card.querySelector('.badge');
+
+                if (voteRank > -1) {
+                    card.classList.add('selected');
+                    badge.innerText = voteRank + 1; // ลำดับ 1, 2, 3
+                } else {
+                    card.classList.remove('selected');
+                    badge.innerText = '';
+                }
+            });
+
+            // แสดงปุ่มส่งเมื่อเลือกครบ 3 คน
+            const btn = document.getElementById('submitBtn');
+            btn.style.display = selectedVotes.length === 3 ? 'inline-block' : 'none';
+        }
+
+        // 6. ส่งข้อมูลกลับไปบันทึกที่ Google Sheet
+        function submitVote() {
+            const btn = document.getElementById('submitBtn');
+            btn.innerText = 'กำลังส่งข้อมูล...';
+            btn.disabled = true;
+
+            // เตรียมข้อมูลส่งเป็น Form Data
+            const formData = new URLSearchParams();
+            formData.append('rank1', selectedVotes[0]);
+            formData.append('rank2', selectedVotes[1]);
+            formData.append('rank3', selectedVotes[2]);
+
+            fetch(SCRIPT_URL, {
+                method: 'POST',
+                body: formData
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        alert('บันทึกผลโหวตเรียบร้อยแล้ว ขอบคุณครับ!');
+                        window.location.reload(); // รีเฟรชหน้าเมื่อเสร็จ
+                    }
+                })
+                .catch(error => {
+                    alert('เกิดข้อผิดพลาดในการส่งข้อมูล');
+                    btn.innerText = 'ส่งผลโหวต';
+                    btn.disabled = false;
+                });
+        }
+    </script>
+</body>
+
+</html>
