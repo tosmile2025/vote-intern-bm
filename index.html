@@ -10,11 +10,99 @@
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: #f4f7f6;
             text-align: center;
+            padding: 0;
+            /* เอา padding ออกเพื่อจัด Header */
+            margin: 0;
+        }
+
+        /* ส่วนซิงค์ข้อมูลแอดมิน */
+        .admin-bar {
+            text-align: right;
+            padding: 10px 20px;
+            background-color: #f4f7f6;
+        }
+
+        /* ส่วนหัวที่ตรึงไว้ด้านบน */
+        .sticky-header {
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            background: rgba(44, 62, 80, 0.95);
+            color: white;
+            padding: 15px 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            backdrop-filter: blur(5px);
+        }
+
+        /* เอฟเฟกต์ตอนเลื่อนลง (หัวจะเล็กลง) */
+        .sticky-header.shrink {
+            padding: 8px 20px;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            text-align: left;
+        }
+
+        .sticky-header h1 {
+            margin: 0;
+            font-size: 24px;
+            transition: font-size 0.3s ease;
+            color: white;
+        }
+
+        .sticky-header.shrink h1 {
+            font-size: 18px;
+        }
+
+        /* ส่วนแสดงจำนวนที่เลือก */
+        .selection-counter {
+            background: #f1c40f;
+            color: #2c3e50;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        /* ปุ่มส่งโหวตด้านบน */
+        .btn-submit {
+            background: #27ae60;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 16px;
+            transition: background 0.3s;
+        }
+
+        .btn-submit:disabled {
+            background: #7f8c8d;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+
+        .btn-submit:hover:not(:disabled) {
+            background: #2ecc71;
+        }
+
+        /* ส่วนเนื้อหาหลัก */
+        .content {
             padding: 20px;
         }
 
-        h1 {
-            color: #2c3e50;
+        .description {
+            color: #555;
+            margin-bottom: 20px;
         }
 
         .grid {
@@ -41,16 +129,12 @@
 
         .card img {
             width: 100%;
-            /* บังคับให้ความกว้างไม่เกินขนาดของการ์ดเด็ดขาด */
             height: 250px;
-            /* บังคับความสูงให้การ์ดทุกใบดูเป็นระเบียบเท่ากันหมด */
             object-fit: contain;
-            /* สำคัญ! ย่อ/ขยายรูปให้พอดีกรอบ โดยไม่ตัดส่วนใดทิ้ง และไม่ผิดสัดส่วน */
             border-radius: 8px;
             display: block;
             margin: 0 auto;
             background-color: #fafafa;
-            /* เพิ่มสีพื้นหลังอ่อนๆ เวลารูปไม่เต็มกรอบการ์ดจะได้ดูสวยงามเนียนตา */
         }
 
         .card h3 {
@@ -75,6 +159,7 @@
             justify-content: center;
             opacity: 0;
             transition: 0.2s;
+            z-index: 2;
         }
 
         .card.selected {
@@ -85,59 +170,55 @@
             opacity: 1;
         }
 
-        #submitBtn {
-            margin-top: 30px;
-            padding: 15px 30px;
-            font-size: 18px;
-            background-color: #27ae60;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            display: none;
-        }
-
-        #submitBtn:disabled {
-            background-color: #95a5a6;
-            cursor: not-allowed;
-        }
-
         #loading {
             font-size: 18px;
             color: #7f8c8d;
             margin-top: 50px;
         }
+
+        /* ซ่อนปุ่มส่งอันเก่าที่อยู่ด้านล่าง */
+        #submitBtn {
+            display: none !important;
+        }
     </style>
 </head>
 
 <body>
-    <div style="text-align: right; margin-bottom: -20px; padding-right: 20px;">
+    <div class="admin-bar">
         <button onclick="syncData()"
             style="background: #34495e; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-size: 14px;">
             🔄 ดึงข้อมูลใหม่จาก Drive
         </button>
     </div>
-    <h1 id="titleText">Vote Intern ...</h1>
-    <p>กรุณาเลือก Intern ที่ต้องการโหวต 3 ลำดับ (คลิกที่รูปเพื่อเลือก)</p>
 
-    <div id="loading">กำลังโหลดข้อมูล...</div>
-    <div class="grid" id="internGrid"></div>
+    <div class="sticky-header" id="stickyHeader">
+        <div class="header-left">
+            <h1 id="titleText">Vote Intern ...</h1>
+            <div class="selection-counter" id="counterText">เลือกแล้ว: 0/3 คน</div>
+        </div>
+        <button id="topSubmitBtn" class="btn-submit" onclick="submitVote()" disabled>ส่งผลโหวต</button>
+    </div>
 
-    <button id="submitBtn" onclick="submitVote()">ส่งผลโหวต</button>
+    <div class="content">
+        <p class="description">กรุณาเลือก Intern ที่ต้องการโหวต 1-3 ลำดับ (คลิกที่รูปเพื่อเลือก)</p>
+
+        <div id="loading">กำลังโหลดข้อมูล...</div>
+        <div class="grid" id="internGrid"></div>
+    </div>
 
     <script>
-        // ⚠️ นำ URL เว็บแอป (Web App URL) ที่ได้จากขั้นตอนที่ 1 มาใส่ตรงนี้ 
+        // ⚠️ นำ URL เว็บแอป (Web App URL) ของคุณมาใส่ตรงนี้
         const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx_fRTUbzyuSR3oGoFl3W4S4Anda1sXUmWx8drsy4PphFy4atsWsaEyAky7BCfd1vVL/exec';
 
         let interns = [];
         let selectedVotes = []; // เก็บชื่อคนที่ถูกโหวต [อันดับ 1, อันดับ 2, อันดับ 3]
 
-        // 1. ตั้งค่าปีอัตโนมัติ (เช่น ปีปัจจุบัน 2569 - 1 = 2568)
+        // 1. ตั้งค่าปีอัตโนมัติ
         const currentYear = new Date().getFullYear();
         const displayYear = (currentYear + 543) - 1;
         document.getElementById('titleText').innerText = `Vote Intern ${displayYear}`;
 
-        // 2. ดึงข้อมูลจาก Google Sheet (เร็วมาก)
+        // 2. ดึงข้อมูลจาก Google Sheet
         fetch(SCRIPT_URL)
             .then(response => response.json())
             .then(data => {
@@ -146,7 +227,17 @@
                 renderGrid();
             });
 
-        // 3. สร้างการ์ดแสดงรายชื่อ
+        // 3. จัดการ Scroll เพื่อย่อขนาด Header
+        window.addEventListener('scroll', () => {
+            const header = document.getElementById('stickyHeader');
+            if (window.scrollY > 50) {
+                header.classList.add('shrink');
+            } else {
+                header.classList.remove('shrink');
+            }
+        });
+
+        // 4. สร้างการ์ดแสดงรายชื่อ
         function renderGrid() {
             const grid = document.getElementById('internGrid');
             grid.innerHTML = '';
@@ -165,7 +256,7 @@
             });
         }
 
-        // 4. ระบบเลือกลำดับ 1, 2, 3
+        // 5. ระบบเลือกลำดับ
         function toggleSelection(name, cardElement) {
             const index = selectedVotes.indexOf(name);
 
@@ -177,14 +268,14 @@
                 if (selectedVotes.length < 3) {
                     selectedVotes.push(name);
                 } else {
-                    alert('คุณเลือกครบ 3 ลำดับแล้วครับ หากต้องการเปลี่ยนให้คลิกยกเลิกคนเดิมก่อน');
+                    alert('คุณเลือกครบ 3 ลำดับสูงสุดแล้วครับ หากต้องการเปลี่ยนให้คลิกยกเลิกคนเดิมก่อน');
                     return;
                 }
             }
             updateUI();
         }
 
-        // 5. อัปเดตหน้าตา UI (ป้าย 1, 2, 3 และปุ่มส่ง)
+        // 6. อัปเดตหน้าตา UI (ป้าย 1, 2, 3, ตัวนับจำนวน และปุ่มส่ง)
         function updateUI() {
             const cards = document.querySelectorAll('.card');
             cards.forEach((card, index) => {
@@ -201,22 +292,29 @@
                 }
             });
 
-            // แสดงปุ่มส่งเมื่อเลือกครบ 3 คน
-            const btn = document.getElementById('submitBtn');
-            btn.style.display = selectedVotes.length === 3 ? 'inline-block' : 'none';
+            // อัปเดตตัวนับจำนวนบน Header
+            document.getElementById('counterText').innerText = `เลือกแล้ว: ${selectedVotes.length}/3 คน`;
+
+            // เปิดให้กดปุ่มส่งได้ เมื่อเลือกอย่างน้อย 1 คน
+            const topBtn = document.getElementById('topSubmitBtn');
+            if (selectedVotes.length > 0) {
+                topBtn.disabled = false;
+            } else {
+                topBtn.disabled = true;
+            }
         }
 
-        // 6. ส่งข้อมูลกลับไปบันทึกที่ Google Sheet
+        // 7. ส่งข้อมูลกลับไปบันทึกที่ Google Sheet
         function submitVote() {
-            const btn = document.getElementById('submitBtn');
-            btn.innerText = 'กำลังส่งข้อมูล...';
-            btn.disabled = true;
+            const topBtn = document.getElementById('topSubmitBtn');
+            topBtn.innerText = 'กำลังส่ง...';
+            topBtn.disabled = true;
 
-            // เตรียมข้อมูลส่งเป็น Form Data
+            // เตรียมข้อมูลส่งเป็น Form Data (ถ้าไม่ได้เลือกอันดับไหน ให้ส่งค่าว่างไป)
             const formData = new URLSearchParams();
-            formData.append('rank1', selectedVotes[0]);
-            formData.append('rank2', selectedVotes[1]);
-            formData.append('rank3', selectedVotes[2]);
+            formData.append('rank1', selectedVotes[0] || '');
+            formData.append('rank2', selectedVotes[1] || '');
+            formData.append('rank3', selectedVotes[2] || '');
 
             fetch(SCRIPT_URL, {
                 method: 'POST',
@@ -226,19 +324,18 @@
                 .then(data => {
                     if (data.status === 'success') {
                         alert('บันทึกผลโหวตเรียบร้อยแล้ว ขอบคุณครับ!');
-                        window.location.reload(); // รีเฟรชหน้าเมื่อเสร็จ
+                        window.location.reload();
                     }
                 })
                 .catch(error => {
                     alert('เกิดข้อผิดพลาดในการส่งข้อมูล');
-                    btn.innerText = 'ส่งผลโหวต';
-                    btn.disabled = false;
+                    topBtn.innerText = 'ส่งผลโหวต';
+                    topBtn.disabled = false;
                 });
         }
 
-        // 7. ฟังก์ชันสั่งอัปเดตข้อมูลจาก Drive
+        // 8. ฟังก์ชันสั่งอัปเดตข้อมูลจาก Drive
         function syncData() {
-            // ตั้งรหัสผ่านง่ายๆ ตรงนี้ ป้องกันคนอื่นกดเล่น
             const pass = prompt('กรุณาใส่รหัสผ่านแอดมิน เพื่อดึงข้อมูลใหม่จาก Drive:');
             if (pass !== '1234') {
                 if (pass !== null) alert('รหัสผ่านไม่ถูกต้อง');
@@ -247,7 +344,6 @@
 
             alert('กำลังสั่งให้ระบบดึงข้อมูลจาก Google Drive... อาจใช้เวลา 5-15 วินาที กรุณารอสักครู่ครับ');
 
-            // เตรียมคำสั่ง action = updateDatabase
             const formData = new URLSearchParams();
             formData.append('action', 'updateDatabase');
 
@@ -269,7 +365,6 @@
                     alert('เกิดข้อผิดพลาดในการเชื่อมต่อ');
                 });
         }
-
     </script>
 </body>
 
