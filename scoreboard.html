@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Scoreboard - Vote Intern</title>
+    <link rel="icon" type="image/png" href="logo-sm.png" />
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -19,9 +20,10 @@
         .admin-bar {
             text-align: right;
             padding: 10px 20px;
+            position: relative;
         }
 
-        .admin-bar button {
+        .btn-clear {
             background: #e74c3c;
             color: white;
             border: none;
@@ -33,8 +35,57 @@
             transition: 0.3s;
         }
 
-        .admin-bar button:hover {
+        .btn-clear:hover {
             background: #c0392b;
+        }
+
+        .btn-settings {
+            background: transparent;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            margin-right: 10px;
+            opacity: 0.7;
+            transition: 0.3s;
+        }
+
+        .btn-settings:hover {
+            opacity: 1;
+            transform: rotate(45deg);
+        }
+
+        /* กล่องตั้งค่าการนับคะแนน (ซ่อนไว้เป็นส่วนตัว) */
+        .settings-panel {
+            display: none;
+            position: absolute;
+            right: 20px;
+            top: 50px;
+            background: #16213e;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #0f3460;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+            text-align: left;
+            z-index: 100;
+            font-size: 14px;
+            color: #ddd;
+            width: 320px;
+        }
+
+        .settings-panel label {
+            cursor: pointer;
+            display: block;
+            margin-bottom: 8px;
+        }
+
+        .settings-panel input[type="number"] {
+            width: 45px;
+            padding: 3px;
+            border-radius: 4px;
+            border: 1px solid #444;
+            background: #222;
+            color: white;
+            text-align: center;
         }
 
         h1 {
@@ -42,6 +93,11 @@
             font-size: 36px;
             margin-bottom: 10px;
             margin-top: 10px;
+        }
+
+        #scoreDesc {
+            color: #aaa;
+            margin-bottom: 20px;
         }
 
         .podium-container {
@@ -102,7 +158,6 @@
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
         }
 
-        /* จัดแท่นยืนอันดับ 1, 2, 3 */
         .rank-1 {
             order: 2;
             transform: translateY(-30px);
@@ -226,12 +281,35 @@
 <body>
 
     <div class="admin-bar">
-        <button onclick="clearVotes()">🗑️ ล้างผลโหวตทั้งหมด</button>
+        <button class="btn-settings" onclick="toggleSettings()" title="ตั้งค่าการคำนวณคะแนน">⚙️</button>
+        <button class="btn-clear" onclick="clearVotes()">🗑️ ล้างผลโหวตทั้งหมด</button>
+
+        <div class="settings-panel" id="settingsPanel">
+            <div
+                style="margin-bottom: 10px; color: #f1c40f; font-weight: bold; border-bottom: 1px solid #444; padding-bottom: 5px;">
+                โหมดการคำนวณคะแนน</div>
+
+            <label>
+                <input type="radio" name="calcMode" value="normal" checked onchange="recalculateScores()">
+                โหมดปกติ (ทุกคน 1 โหวต = 1 คะแนน)
+            </label>
+
+            <div style="margin-top: 15px;">
+                <label>
+                    <input type="radio" name="calcMode" value="ranked" onchange="recalculateScores()">
+                    โหมดกำหนดคะแนนตามลำดับ:
+                </label>
+                <div style="padding-left: 25px; margin-top: 5px;">
+                    อันดับ 1: <input type="number" id="pt1" value="3" oninput="checkRecalculate()"> pt<br>
+                    อันดับ 2: <input type="number" id="pt2" value="2" oninput="checkRecalculate()"> pt<br>
+                    อันดับ 3: <input type="number" id="pt3" value="1" oninput="checkRecalculate()"> pt
+                </div>
+            </div>
+        </div>
     </div>
 
     <h1 id="titleText">🏆 Live Scoreboard ...</h1>
-
-    <p>สรุปผลคะแนน (ผู้ที่ถูกเลือกจะได้ 1 คะแนนเท่ากันทุกคน)</p>
+    <p id="scoreDesc">กำลังโหลดกติกา...</p>
 
     <div id="loading">กำลังประมวลผลคะแนน...</div>
 
@@ -242,29 +320,82 @@
     <script>
         // ⚠️ นำ URL เว็บแอป (Web App URL) ของคุณมาใส่ตรงนี้
         const BASE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx_fRTUbzyuSR3oGoFl3W4S4Anda1sXUmWx8drsy4PphFy4atsWsaEyAky7BCfd1vVL/exec';
-
-        // เติม ?action=getScoreboard ต่อท้าย URL อัตโนมัติสำหรับการโหลดข้อมูล
         const SCRIPT_URL = BASE_SCRIPT_URL + '?action=getScoreboard';
 
-        // ตั้งค่าปีอัตโนมัติ
+        let rawInternData = []; // เก็บข้อมูลดิบสำหรับไว้คำนวณใหม่โดยไม่ต้องโหลดเว็บใหม่
+
         const displayYear = (new Date().getFullYear() + 543) - 1;
         document.getElementById('titleText').innerText = `🏆 Scoreboard Intern ${displayYear}`;
 
-        // โหลดข้อมูลคะแนน
+        // โหลดข้อมูลดิบตอนเปิดหน้าเว็บ
         fetch(SCRIPT_URL)
             .then(response => response.json())
             .then(data => {
+                rawInternData = data;
                 document.getElementById('loading').style.display = 'none';
-                renderScoreboard(data);
+                recalculateScores(); // สั่งคำนวณและแสดงผลทันที
             })
             .catch(error => {
                 document.getElementById('loading').innerText = 'เกิดข้อผิดพลาดในการดึงข้อมูล';
                 console.error(error);
             });
 
+        // ⚙️ เปิด/ปิด เมนูตั้งค่าคะแนน
+        function toggleSettings() {
+            const panel = document.getElementById('settingsPanel');
+            panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
+        }
+
+        // ตรวจสอบว่าถ้าอยู่ในโหมดกำหนดเอง ค่อยให้พิมพ์เลขแล้วคะแนนเด้งเปลี่ยนทันที
+        function checkRecalculate() {
+            const mode = document.querySelector('input[name="calcMode"]:checked').value;
+            if (mode === 'ranked') recalculateScores();
+        }
+
+        // 🔄 ฟังก์ชันคำนวณคะแนนใหม่ตามโหมดที่เลือก (ทำในหน้าจอ ไม่ต้องโหลดเน็ตใหม่)
+        function recalculateScores() {
+            if (rawInternData.length === 0) return;
+
+            const mode = document.querySelector('input[name="calcMode"]:checked').value;
+            const pt1 = parseInt(document.getElementById('pt1').value) || 0;
+            const pt2 = parseInt(document.getElementById('pt2').value) || 0;
+            const pt3 = parseInt(document.getElementById('pt3').value) || 0;
+
+            // คัดลอกและคำนวณคะแนนใหม่
+            let updatedData = rawInternData.map(intern => {
+                let score = 0;
+                if (mode === 'normal') {
+                    // โหมดปกติ: ทุกครั้งที่ถูกเลือก +1 คะแนน
+                    score = intern.rank1Count + intern.rank2Count + intern.rank3Count;
+                } else {
+                    // โหมดกำหนดคะแนน: เอาจำนวนครั้งมาคูณกับ pt ที่แอดมินตั้งไว้
+                    score = (intern.rank1Count * pt1) + (intern.rank2Count * pt2) + (intern.rank3Count * pt3);
+                }
+                return { ...intern, totalScore: score };
+            });
+
+            // เรียงลำดับจากมากไปน้อย
+            updatedData.sort((a, b) => b.totalScore - a.totalScore);
+
+            // เปลี่ยนข้อความอธิบายกติกา
+            const desc = document.getElementById('scoreDesc');
+            if (mode === 'normal') {
+                desc.innerText = 'สรุปผลคะแนน (ผู้ที่ถูกเลือกจะได้ 1 คะแนนเท่ากันทุกคน)';
+            } else {
+                desc.innerText = `สรุปผลคะแนน (อันดับ 1 = ${pt1} pt, อันดับ 2 = ${pt2} pt, อันดับ 3 = ${pt3} pt)`;
+            }
+
+            // ส่งไปสร้างหน้าจอ
+            renderScoreboard(updatedData);
+        }
+
+        // 🎨 ฟังก์ชันวาดหน้าจอ (ใช้โค้ดเดิม)
         function renderScoreboard(interns) {
             const top3Container = document.getElementById('top3');
             const othersContainer = document.getElementById('others');
+
+            top3Container.innerHTML = ''; // ล้างของเก่า
+            othersContainer.innerHTML = ''; // ล้างของเก่า
 
             interns.forEach((intern, index) => {
                 const rank = index + 1;
@@ -276,7 +407,7 @@
                         <div class="rank-badge">${rank}</div>
                         <img src="${intern.imageUrl}" alt="${intern.name}">
                         <h3>${intern.name}</h3>
-                        <div class="score">${intern.totalScore} โหวต</div>
+                        <div class="score">${intern.totalScore} คะแนน</div>
                     `;
                     top3Container.appendChild(card);
                 } else {
@@ -288,14 +419,14 @@
                             <img src="${intern.imageUrl}" alt="${intern.name}">
                             <span>${intern.name}</span>
                         </div>
-                        <div style="font-weight: bold; color: #f1c40f;">${intern.totalScore} โหวต</div>
+                        <div style="font-weight: bold; color: #f1c40f;">${intern.totalScore} คะแนน</div>
                     `;
                     othersContainer.appendChild(row);
                 }
             });
         }
 
-        // 🛑 ฟังก์ชันสั่งล้างข้อมูลคะแนนโหวต (ใช้รหัสผ่าน)
+        // 🛑 ฟังก์ชันสั่งล้างข้อมูลคะแนนโหวต (โค้ดเดิม)
         function clearVotes() {
             const pass = prompt('กรุณาใส่รหัสผ่านแอดมิน เพื่อ "ล้างข้อมูลผลโหวตทั้งหมด":');
             if (pass !== '1234') {
@@ -303,18 +434,15 @@
                 return;
             }
 
-            // ยืนยันอีกครั้งป้องกันการเผลอกด
             if (!confirm('⚠️ คำเตือน: คุณแน่ใจหรือไม่ว่าต้องการลบผลโหวตทั้งหมด? การกระทำนี้ไม่สามารถย้อนกลับได้!')) {
                 return;
             }
 
             alert('กำลังสั่งลบข้อมูลใน Google Sheet... กรุณารอสักครู่ครับ');
 
-            // เตรียมคำสั่ง action = clearVotes
             const formData = new URLSearchParams();
             formData.append('action', 'clearVotes');
 
-            // สั่ง POST ไปยัง URL หลัก
             fetch(BASE_SCRIPT_URL, {
                 method: 'POST',
                 body: formData
